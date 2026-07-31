@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "onefile"
+version = "0.1.0"
+description = "Bundle project files into a single text file"
+requires-python = ">=3.10"
+dependencies = ["onefile-patterns>=0.1.0"]
+
+[project.scripts]
+onefile = "onefile.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
