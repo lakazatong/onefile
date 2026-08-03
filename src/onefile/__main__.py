@@ -6,6 +6,19 @@ from onefile_patterns import PatternMatcher, load_patterns, normalize_pattern
 
 root_dir = Path()
 
+def is_text_file(path):
+    try:
+        with open(path, "rb") as f:
+            chunk = f.read(8192)
+
+        if b"\x00" in chunk:
+            return False
+
+        chunk.decode("utf-8")
+        return True
+
+    except (UnicodeDecodeError, OSError):
+        return False
 
 def iter_project_files(root_dir, base_patterns, always_exclude):
     root_dir = Path(root_dir).resolve()
@@ -33,7 +46,7 @@ def iter_project_files(root_dir, base_patterns, always_exclude):
             active_patterns.extend(added)
 
         # Build matcher from the current stack
-        matcher = PatternMatcher(active_patterns, "manual")
+        matcher = PatternMatcher(active_patterns)
 
         # Process files in current_dir
         try:
@@ -45,6 +58,8 @@ def iter_project_files(root_dir, base_patterns, always_exclude):
             try:
                 if entry.is_file():
                     if entry.name in always_exclude:
+                        continue
+                    if not is_text_file(entry):
                         continue
                     rel = entry.relative_to(root_dir)
                     parts = rel.parts

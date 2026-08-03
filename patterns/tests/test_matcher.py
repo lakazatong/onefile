@@ -1,4 +1,7 @@
+import itertools
+
 import pytest
+
 from onefile_patterns import PatternMatcher, normalize_pattern
 
 
@@ -6,19 +9,25 @@ def make_patterns(*patterns):
     return [normalize_pattern(p) for p in patterns]
 
 
-def check(mode, patterns, cases):
-    matcher = PatternMatcher(make_patterns(*patterns), mode)
+def check(patterns, cases, permutations=True):
+    orders = (
+        itertools.permutations(patterns)
+        if permutations
+        else [patterns]
+    )
 
-    for path, expected in cases.items():
-        result = matcher.matches(tuple(path.split("/")))
+    for order in orders:
+        matcher = PatternMatcher(make_patterns(*order))
 
-        assert result == expected, f"""
-        mode: {mode}
-        patterns: {patterns}
-        path: {path}
-        match: {result}
-        expected: {expected}
-        """.strip()
+        for path, expected in cases.items():
+            result = matcher.matches(tuple(path.split("/")))
+
+            assert result == expected, f"""
+            patterns: {order}
+            path: {path}
+            match: {result}
+            expected: {expected}
+            """.strip()
 
 
 def test_normalization_basic():
@@ -32,11 +41,9 @@ def test_normalization_basic():
 
 
 def test_dot_and_slash_as_starstar():
-    # All forms of "current directory" become **
     for pattern in (".", "./", ".///", "////", "/./", ".//./"):
         assert normalize_pattern(pattern) == (False, ("**",))
 
-    # With negation
     for pattern in ("!.", "!./", "!.///"):
         assert normalize_pattern(pattern) == (True, ("**",))
 
@@ -49,12 +56,14 @@ def test_double_dot_rejected():
 
 def test_triple_dot_is_literal():
     assert normalize_pattern("...") == (False, ("...",))
-    assert normalize_pattern("src/.../file") == (False, ("src", "...", "file"))
+    assert normalize_pattern("src/.../file") == (
+        False,
+        ("src", "...", "file"),
+    )
 
 
-def test_manual_basic():
+def test_include_basic():
     check(
-        "manual",
         ["src"],
         {
             "src/main.zig": True,
@@ -64,9 +73,8 @@ def test_manual_basic():
     )
 
 
-def test_manual_negation():
+def test_exclude_basic():
     check(
-        "manual",
         ["src", "!src/private"],
         {
             "src/main.zig": True,
@@ -76,10 +84,9 @@ def test_manual_negation():
     )
 
 
-def test_black_basic():
+def test_exclude_directory():
     check(
-        "black",
-        ["build"],
+        ["!build"],
         {
             "src/main.zig": True,
             "build/a.o": False,
@@ -87,10 +94,9 @@ def test_black_basic():
     )
 
 
-def test_black_negation():
+def test_reinclude_directory():
     check(
-        "black",
-        ["build", "!build/cache"],
+        ["!build", "build/cache"],
         {
             "build/a.o": False,
             "build/cache/a.o": True,
@@ -98,14 +104,53 @@ def test_black_negation():
     )
 
 
-def test_manual_multiple_negations():
+def test_nested_exclusions():
     check(
-        "manual",
         ["src", "!src/generated", "!src/generated/private"],
         {
             "src/a.zig": True,
             "src/generated/a.zig": False,
             "src/generated/private/a.zig": False,
+        },
+    )
+
+
+def test_specificity():
+    check(
+        ["!*.txt", "credits.txt"],
+        {
+            "credits.txt": True,
+            "a.txt": False,
+            "dir/a.txt": False,
+            "image.png": False,
+        },
+    )
+
+    check(
+        ["*.txt", "!credits.txt"],
+        {
+            "credits.txt": False,
+            "a.txt": True,
+            "dir/a.txt": False,
+            "image.png": False,
+        },
+    )
+
+    check(
+        ["src", "!src/private", "src/private/public"],
+        {
+            "src/a": True,
+            "src/private/a": False,
+            "src/private/public/a": True,
+        },
+    )
+
+    check(
+        ["!src", "src/private", "!src/private/public"],
+        {
+            "src/a": False,
+            "src/private/a": True,
+            "src/private/public/a": False,
         },
     )
 
@@ -126,7 +171,6 @@ def test_absolute_windows_path_normalization_negation():
 
 def test_double_star():
     check(
-        "manual",
         ["my_folder/**/my_file"],
         {
             "my_folder/my_file": True,
@@ -142,7 +186,6 @@ def test_double_star():
 
 def test_double_star_zig():
     check(
-        "manual",
         ["src/**/*.zig"],
         {
             "src/main.zig": True,
@@ -156,7 +199,6 @@ def test_double_star_zig():
 
 def test_double_star_root_zig():
     check(
-        "manual",
         ["**/*.zig"],
         {
             ".zig": True,
@@ -166,5 +208,95 @@ def test_double_star_root_zig():
             "src/a/b/main.zig": True,
             "src/a/b/main.js": False,
             "src/.zig": True,
+        },
+    )
+
+
+def test_equal_specificity_last_one_wins():
+    check(
+        ["*.txt", "!*.txt"],
+        {
+            "a.txt": False,
+        },
+        permutations=False,
+    )
+
+
+def test_double_star_is_less_specific():
+    check(
+        ["**/*.zig", "!src/main.zig"],
+        {
+            "src/main.zig": False,
+            "other/main.zig": True,
+        },
+    )
+
+
+def test_no_patterns():
+    check(
+        [],
+        {
+            "anything": True,
+            "a/b/c": True,
+        },
+    )
+
+
+def test_root_include_and_exclude():
+    check(
+        ["."],
+        {
+            "file.txt": True,
+            "dir/file.txt": True,
+        },
+    )
+
+    check(
+        ["!."],
+        {
+            "file.txt": False,
+            "dir/file.txt": False,
+        },
+    )
+
+
+def test_directory_pattern_matches_contents():
+    check(
+        ["src/file"],
+        {
+            "src/file": True,
+            "src/file/a": True,
+            "src": False,
+            "src_other/file": False,
+        },
+    )
+
+
+def test_special_component_names():
+    check(
+        ["*.txt"],
+        {
+            ".txt": True,
+            "file.txt": True,
+            "file.txt.bak": False,
+            "txt": False,
+        },
+    )
+
+
+def test_wildcard_component():
+    check(
+        ["a_*_b_*_c.txt"],
+        {
+            "a_x_b_y_c.txt": True,
+            "a_test_b_world_c.txt": True,
+            "a_hello_world_b_123_c.txt": True,
+            "a__b__c.txt": True,
+            "a_x_b_c.txt": False,
+            "a_x_y.txt": False,
+            "x_a_x_b_y_c.txt": False,
+            "a_x_b_y_c.txt.bak": False,
+            "a_b_b_c.txt": False,
+            "a_b_b_b_b_c.txt": True,
         },
     )

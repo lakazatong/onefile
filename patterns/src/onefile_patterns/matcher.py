@@ -62,6 +62,7 @@ def match_component(pattern, value):
         return pattern == value
 
     regex = "^" + re.escape(pattern).replace("\\*", ".*") + "$"
+
     return re.match(regex, value) is not None
 
 
@@ -117,26 +118,35 @@ def can_match_below(pattern, path):
     return recurse(0, 0)
 
 
+def pattern_specificity(pattern):
+    return (
+        sum(part != "**" for part in pattern),
+        -sum(part == "**" for part in pattern),
+        -sum("*" in part for part in pattern),
+    )
+
+
 class PatternMatcher:
-    def __init__(self, patterns, mode):
+    def __init__(self, patterns):
         self.patterns = patterns
-        self.mode = mode
 
     def matches(self, path_parts):
-        best = None
+        matched = []
 
-        for negated, pattern in self.patterns:
-            result = match_path(pattern, path_parts)
-            if result:
-                best = (negated, pattern)
+        has_include = any(not negated for negated, _ in self.patterns)
 
-        if best is None:
-            return self.mode == "black"
+        for index, (negated, pattern) in enumerate(self.patterns):
+            if match_path(pattern, path_parts):
+                matched.append(
+                    (pattern_specificity(pattern), index, negated)
+                )
 
-        negated, _ = best
+        if not matched:
+            return not has_include
 
-        included = self.mode != "black"
-        return included ^ negated
+        _, _, negated = max(matched, key=lambda x: (x[0], x[1]))
+
+        return not negated
 
     def can_have_matches_below(self, path_parts):
         for _, pattern in self.patterns:
