@@ -6,6 +6,7 @@ from onefile_patterns import PatternMatcher, load_patterns, normalize_pattern
 
 root_dir = Path()
 
+
 def is_text_file(path):
     try:
         with open(path, "rb") as f:
@@ -19,6 +20,7 @@ def is_text_file(path):
 
     except (UnicodeDecodeError, OSError):
         return False
+
 
 def iter_project_files(root_dir, base_patterns, always_exclude):
     root_dir = Path(root_dir).resolve()
@@ -98,11 +100,11 @@ def write_output(root_dir, output_file, base_patterns, always_exclude):
             except (OSError, UnicodeDecodeError) as e:
                 print(e)
                 continue
-            out.write(f"{rel}\n\n")
+            out.write(f"{rel}:\n\n```\n")
             out.write(content)
             if not content.endswith("\n"):
                 out.write("\n")
-            out.write("\n")
+            out.write("```\n\n")
 
 
 def main():
