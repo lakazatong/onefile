@@ -133,18 +133,21 @@ class PatternMatcher:
     def matches(self, path_parts):
         matched = []
 
-        has_include = any(not negated for negated, _ in self.patterns)
-
-        for index, (negated, pattern) in enumerate(self.patterns):
+        for index, (priority, negated, pattern) in enumerate(self.patterns):
             if match_path(pattern, path_parts):
-                matched.append(
-                    (pattern_specificity(pattern), index, negated)
-                )
+                matched.append((priority, pattern_specificity(pattern), index, negated))
 
+        # if nothing matches and all patterns are exclusions
+        # then include
+        # if nothing matches and at least one pattern is an inclusion
+        # then exclude, since it didn't match the only inclusion pattern
         if not matched:
-            return not has_include
+            return all(negated for _, negated, _ in self.patterns)
 
-        _, _, negated = max(matched, key=lambda x: (x[0], x[1]))
+        # otherwise, prioritize patterns from the CLI
+        # then the more specific ones (a file > a folder which contains that same file)
+        # and otherwise the order, that is, the last one takes precedence
+        _, _, _, negated = max(matched, key=lambda x: (x[0], x[1], x[2]))
 
         return not negated
 

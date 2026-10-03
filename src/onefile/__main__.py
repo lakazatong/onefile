@@ -34,15 +34,15 @@ def iter_project_files(root_dir, base_patterns, always_exclude):
         exc_file = current_dir / "onefile_exclude.txt"
 
         if inc_file.exists():
-            for neg, parts in load_patterns(str(inc_file)):
+            for negated, parts in load_patterns(str(inc_file)):
                 new_parts = current_parts + parts
-                added.append((neg, new_parts))
+                added.append((0, negated, new_parts))
 
         if exc_file.exists():
-            for neg, parts in load_patterns(str(exc_file)):
+            for negated, parts in load_patterns(str(exc_file)):
                 # Negation toggled: include → exclude, exclude → include
                 new_parts = current_parts + parts
-                added.append((not neg, new_parts))
+                added.append((0, not negated, new_parts))
 
         if added:
             active_patterns.extend(added)
@@ -136,7 +136,7 @@ def main():
     parser.add_argument(
         "patterns",
         nargs="*",
-        help="Include path patterns (manual mode)",
+        help="Include path patterns",
     )
     parser.add_argument(
         "-d",
@@ -162,7 +162,10 @@ def main():
     output_file = Path(args.output).resolve()
 
     # Base patterns come ONLY from command line
-    base_patterns = [normalize_pattern(p) for p in args.patterns]
+    base_patterns = [
+        (1, negated, parts)
+        for negated, parts in (normalize_pattern(p) for p in args.patterns)
+    ]
 
     # Always exclude the script itself and the output file
     script_name = Path(__file__).name

@@ -1,23 +1,18 @@
 import itertools
 
 import pytest
-
 from onefile_patterns import PatternMatcher, normalize_pattern
 
 
-def make_patterns(*patterns):
-    return [normalize_pattern(p) for p in patterns]
+def make_pattern(priority, pattern):
+    return (priority, *normalize_pattern(pattern))
 
 
 def check(patterns, cases, permutations=True):
-    orders = (
-        itertools.permutations(patterns)
-        if permutations
-        else [patterns]
-    )
+    orders = itertools.permutations(patterns) if permutations else [patterns]
 
     for order in orders:
-        matcher = PatternMatcher(make_patterns(*order))
+        matcher = PatternMatcher([make_pattern(0, pattern) for pattern in order])
 
         for path, expected in cases.items():
             result = matcher.matches(tuple(path.split("/")))
@@ -300,3 +295,14 @@ def test_wildcard_component():
             "a_b_b_b_b_c.txt": True,
         },
     )
+
+
+def test_cli_overrides_file_include():
+    matcher = PatternMatcher(
+        [
+            make_pattern(1, "!public"),  # CLI
+            make_pattern(0, "public"),  # include file
+        ]
+    )
+
+    assert not matcher.matches(("public", "file.txt"))
