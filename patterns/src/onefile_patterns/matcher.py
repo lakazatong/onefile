@@ -152,7 +152,7 @@ class PatternMatcher:
         return not negated
 
     def can_have_matches_below(self, path_parts):
-        for _, pattern in self.patterns:
+        for _, _, pattern in self.patterns:
             if can_match_below(pattern, path_parts):
                 return True
 
