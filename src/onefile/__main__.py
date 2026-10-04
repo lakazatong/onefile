@@ -175,11 +175,9 @@ def main():
         for negated, parts in (normalize_pattern(p) for p in args.patterns)
     ]
 
-    # Always exclude the script itself and the output file
-    script_name = Path(__file__).name
+    # Always exclude the output, include and exclude files
     always_exclude = {
-        script_name,
-        output_file.name,
+        output_file.resolve(),
         "onefile_include.txt",
         "onefile_exclude.txt",
     }
