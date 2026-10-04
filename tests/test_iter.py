@@ -55,3 +55,22 @@ def test_same_specificity(tmp_path):
     files = list(iter_project_files(tmp_path, patterns, set()))
 
     assert not target in files
+
+
+def test_tricky_specificity(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+
+    my_package_egg_info = src / "my-package.egg-info"
+    my_package_egg_info.mkdir()
+
+    target = my_package_egg_info / "PKG-INFO"
+    target.write_text("Metadata-Version: 2.4")
+
+    (tmp_path / "onefile_exclude.txt").write_text("**/*.egg-info\n")
+
+    patterns = [make_pattern(1, "src/**")]
+
+    files = list(iter_project_files(tmp_path, patterns, set()))
+
+    assert not target in files

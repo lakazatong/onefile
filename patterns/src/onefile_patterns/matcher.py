@@ -98,29 +98,23 @@ def match_path(pattern, path):
 
 
 def can_match_below(pattern, path):
-    # print(
-    #     f"can_match_below called with {pattern = } ({len(pattern)}) and {path = } ({len(path)})"
-    # )
-
-    def recurse(pattern_index, path_index):
-        # print(f"recurse called with {pattern_index = } and {path_index = }")
-        if path_index == len(path):
-            return True
-
+    def recurse(pattern_index, path_index, below):
         if pattern_index == len(pattern):
-            return False
+            return below
 
         if pattern[pattern_index] == "**":
-            return recurse(pattern_index + 1, path_index) or recurse(
-                pattern_index, path_index + 1
+            return recurse(pattern_index + 1, path_index, below) or recurse(
+                pattern_index, path_index + 1, True
             )
 
-        if not match_component(pattern[pattern_index], path[path_index]):
-            return False
+        if path_index < len(path):
+            if not match_component(pattern[pattern_index], path[path_index]):
+                return False
+            return recurse(pattern_index + 1, path_index + 1, below)
 
-        return recurse(pattern_index + 1, path_index + 1)
+        return recurse(pattern_index + 1, path_index, True)
 
-    return recurse(0, 0)
+    return recurse(0, 0, False)
 
 
 def pattern_specificity(pattern):
@@ -158,8 +152,25 @@ class PatternMatcher:
         return not negated
 
     def can_have_matches_below(self, path_parts):
-        for _, _, pattern in self.patterns:
-            if can_match_below(pattern, path_parts):
-                return True
+        possible = []
 
-        return False
+        for index, (priority, negated, pattern) in enumerate(self.patterns):
+            if can_match_below(pattern, path_parts):
+                possible.append(
+                    (priority, pattern_specificity(pattern), index, negated)
+                )
+
+        if not possible:
+            return False
+
+        # If an inclusion can potentially win, we have to descend.
+        inclusions = [p for p in possible if not p[3]]
+
+        if not inclusions:
+            return False
+
+        # An exclusion can only make the subtree safely prunable if it
+        # dominates every possible inclusion.
+        strongest = max(possible, key=lambda x: (x[1], x[0], x[2]))
+
+        return not strongest[3]
