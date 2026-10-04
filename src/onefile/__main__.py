@@ -89,9 +89,10 @@ def preview_files(root_dir, base_patterns, always_exclude):
         print(path.relative_to(root_dir))
 
 
-def write_output(root_dir, output_file, base_patterns, always_exclude):
+def write_output(root_dir, output_file, base_patterns, always_exclude, with_header):
     with open(output_file, "w", encoding="utf-8") as out:
-        out.write(f"Generated using: {' '.join(sys.argv)}\nUnder {root_dir}\n\n")
+        if with_header:
+            out.write(f"Generated using: {' '.join(sys.argv)}\nUnder {root_dir}\n\n")
         for path in iter_project_files(root_dir, base_patterns, always_exclude):
             rel = path.relative_to(root_dir)
             try:
@@ -155,6 +156,11 @@ def main():
         action="store_true",
         help="Dry-run (list matching files only)",
     )
+    parser.add_argument(
+        "--header",
+        action="store_true",
+        help="Appends metadata about the command in the ouput at the top",
+    )
 
     args = parser.parse_args()
 
@@ -169,12 +175,17 @@ def main():
 
     # Always exclude the script itself and the output file
     script_name = Path(__file__).name
-    always_exclude = {script_name, output_file.name}
+    always_exclude = {
+        script_name,
+        output_file.name,
+        "onefile_include.txt",
+        "onefile_exclude.txt",
+    }
 
     if args.dry:
         preview_files(root_dir, base_patterns, always_exclude)
     else:
-        write_output(root_dir, output_file, base_patterns, always_exclude)
+        write_output(root_dir, output_file, base_patterns, always_exclude, args.header)
 
 
 if __name__ == "__main__":
