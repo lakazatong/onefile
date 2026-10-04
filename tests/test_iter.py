@@ -34,10 +34,24 @@ def test_cli_specific_include_overrides_file_exclude(tmp_path):
 
     (tmp_path / "onefile_exclude.txt").write_text(".venv\n")
 
-    patterns = [
-        make_pattern(1, ".venv/foo.py"),
-    ]
+    patterns = [make_pattern(1, ".venv/foo.py")]
 
     files = list(iter_project_files(tmp_path, patterns, set()))
 
     assert target in files
+
+
+def test_same_specificity(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+
+    target = src / "__init__.py"
+    target.write_text("print('hello')")
+
+    (tmp_path / "onefile_exclude.txt").write_text("**/__init__.py\n")
+
+    patterns = [make_pattern(1, "src/**")]
+
+    files = list(iter_project_files(tmp_path, patterns, set()))
+
+    assert not target in files

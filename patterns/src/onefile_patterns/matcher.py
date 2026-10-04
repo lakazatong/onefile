@@ -125,6 +125,7 @@ def can_match_below(pattern, path):
 
 def pattern_specificity(pattern):
     return (
+        pattern[-1] != "**",
         sum(part != "**" for part in pattern),
         -sum(part == "**" for part in pattern),
         -sum("*" in part for part in pattern),
