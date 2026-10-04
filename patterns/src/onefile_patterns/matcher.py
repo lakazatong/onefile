@@ -98,7 +98,12 @@ def match_path(pattern, path):
 
 
 def can_match_below(pattern, path):
+    # print(
+    #     f"can_match_below called with {pattern = } ({len(pattern)}) and {path = } ({len(path)})"
+    # )
+
     def recurse(pattern_index, path_index):
+        # print(f"recurse called with {pattern_index = } and {path_index = }")
         if path_index == len(path):
             return True
 
@@ -144,10 +149,10 @@ class PatternMatcher:
         if not matched:
             return all(negated for _, negated, _ in self.patterns)
 
-        # otherwise, prioritize patterns from the CLI
-        # then the more specific ones (a file > a folder which contains that same file)
+        # otherwise, prioritize the more specific ones (a file > a folder which contains that same file)
+        # then patterns from the CLI
         # and otherwise the order, that is, the last one takes precedence
-        _, _, _, negated = max(matched, key=lambda x: (x[0], x[1], x[2]))
+        _, _, _, negated = max(matched, key=lambda x: (x[1], x[0], x[2]))
 
         return not negated
 

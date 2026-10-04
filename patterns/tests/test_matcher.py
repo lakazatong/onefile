@@ -306,3 +306,14 @@ def test_cli_overrides_file_include():
     )
 
     assert not matcher.matches(("public", "file.txt"))
+
+
+def test_specific_file_pattern_beats_generic_cli_pattern():
+    matcher = PatternMatcher(
+        [
+            make_pattern(1, "**/*.py"),  # CLI
+            make_pattern(0, "!.venv"),  # equivalent to .venv in exclude file
+        ]
+    )
+
+    assert not matcher.matches((".venv", "foo.py"))
