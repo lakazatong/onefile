@@ -167,7 +167,7 @@ def main():
     args = parser.parse_args()
 
     root_dir = Path(args.directory).resolve()
-    output_file = Path(args.output).resolve()
+    output_file = Path(args.output)
 
     # Base patterns come ONLY from command line
     base_patterns = [
@@ -177,7 +177,7 @@ def main():
 
     # Always exclude the output, include and exclude files
     always_exclude = {
-        output_file.resolve(),
+        str(output_file),
         "onefile_include.txt",
         "onefile_exclude.txt",
     }
