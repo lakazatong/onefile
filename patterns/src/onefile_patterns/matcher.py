@@ -152,25 +152,39 @@ class PatternMatcher:
         return not negated
 
     def can_have_matches_below(self, path_parts):
-        possible = []
+        matched = []
 
         for index, (priority, negated, pattern) in enumerate(self.patterns):
-            if can_match_below(pattern, path_parts):
-                possible.append(
-                    (priority, pattern_specificity(pattern), index, negated)
-                )
+            if match_path(pattern, path_parts):
+                matched.append((priority, pattern_specificity(pattern), index, negated))
 
-        if not possible:
-            return False
+        if matched:
+            winner = max(matched, key=lambda x: (x[1], x[0], x[2]))
 
-        # If an inclusion can potentially win, we have to descend.
-        inclusions = [p for p in possible if not p[3]]
+            # An excluded directory is pruned unless a more-specific
+            # inclusion can override that exclusion below it.
+            if winner[3]:
+                winner_key = (winner[1], winner[0], winner[2])
 
-        if not inclusions:
-            return False
+                for index, (priority, negated, pattern) in enumerate(self.patterns):
+                    if negated or not can_match_below(pattern, path_parts):
+                        continue
 
-        # An exclusion can only make the subtree safely prunable if it
-        # dominates every possible inclusion.
-        strongest = max(possible, key=lambda x: (x[1], x[0], x[2]))
+                    candidate = (
+                        priority,
+                        pattern_specificity(pattern),
+                        index,
+                        negated,
+                    )
+                    candidate_key = (candidate[1], candidate[0], candidate[2])
 
-        return not strongest[3]
+                    if candidate_key > winner_key:
+                        return True
+
+                return False
+
+        # No exclusion wins for this directory.
+        return any(
+            not negated and can_match_below(pattern, path_parts)
+            for _, negated, pattern in self.patterns
+        )

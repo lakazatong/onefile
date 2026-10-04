@@ -70,8 +70,10 @@ def iter_project_files(root_dir, base_patterns, always_exclude):
 
                 elif entry.is_dir():
                     sub_parts = current_parts + (entry.name,)
-                    # Only descend if there's any chance of a match below
-                    if matcher.can_have_matches_below(sub_parts):
+
+                    if matcher.matches(sub_parts) or matcher.can_have_matches_below(
+                        sub_parts
+                    ):
                         yield from walk(entry, sub_parts)
 
             except OSError:
