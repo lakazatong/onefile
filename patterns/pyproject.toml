@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "onefile-patterns"
 version = "0.1.0"
-description = "Reusable path pattern matching utilities"
+description = "Reusable path pattern matching utilities primarily used by the onefile package."
 requires-python = ">=3.10"
 
 [tool.setuptools.packages.find]
